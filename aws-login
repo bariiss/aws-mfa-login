@@ -1,0 +1,17 @@
+#!/bin/bash
+
+unset AWS_ACCESS_KEY_ID
+unset AWS_SECRET_ACCESS_KEY
+unset AWS_SESSION_TOKEN
+
+serialNumber=$AWS_USER_SERIAL_NUMBER
+echo "Token Code:" && read tokenCode
+credentials=$(aws sts get-session-token --serial-number $serialNumber --token-code $tokenCode)
+
+accessKeyId=$(jq -r '.Credentials.AccessKeyId' <<< "$credentials")
+secretAccessKey=$(jq -r '.Credentials.SecretAccessKey' <<< "$credentials")
+sessionToken=$(jq -r '.Credentials.SessionToken' <<< "$credentials")
+
+export AWS_ACCESS_KEY_ID=$accessKeyId
+export AWS_SECRET_ACCESS_KEY=$secretAccessKey
+export AWS_SESSION_TOKEN=$sessionToken
