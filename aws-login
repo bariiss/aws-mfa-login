@@ -1,17 +1,43 @@
 #!/bin/bash
 
+while getopts "u:m:h:ns" flag
+do
+    case "${flag}" in 
+        u) user=${OPTARG};;
+        m) mfa=${OPTARG};;
+        n) ns=true;;
+        h) echo -e "-m, -MFA Code - Required\n-u -User arn\n-n -Dont set default aws user arn" && exit;;
+        *) echo "Please use -h flag for detail information"
+    esac
+done
+
+if [ -z "$mfa" ]
+then
+    echo -e "Mfa code is required use -m flag" && exit
+fi
+
 unset AWS_ACCESS_KEY_ID
 unset AWS_SECRET_ACCESS_KEY
 unset AWS_SESSION_TOKEN
 
-serialNumber=$AWS_USER_SERIAL_NUMBER
-echo "Token Code:" && read tokenCode
-credentials=$(aws sts get-session-token --serial-number $serialNumber --token-code $tokenCode)
+serialNumber="${user:-$AWS_USER_SERIAL_NUMBER}"
+
+if [ -z "$serialNumber" ]
+then
+    echo -e "Use -u flag or set AWS_USER_SERIAL_NUMBER" && exit
+fi
+
+if [ -z "$ns" ]
+then
+    export AWS_USER_SERIAL_NUMBER=$serialNumber
+fi
+
+credentials=$(aws sts get-session-token --serial-number $serialNumber --token-code $mfa)
 
 accessKeyId=$(jq -r '.Credentials.AccessKeyId' <<< "$credentials")
 secretAccessKey=$(jq -r '.Credentials.SecretAccessKey' <<< "$credentials")
 sessionToken=$(jq -r '.Credentials.SessionToken' <<< "$credentials")
 
-export AWS_ACCESS_KEY_ID=$accessKeyId
-export AWS_SECRET_ACCESS_KEY=$secretAccessKey
-export AWS_SESSION_TOKEN=$sessionToken
+eval 'export AWS_ACCESS_KEY_ID=$accessKeyId'
+eval 'export AWS_SECRET_ACCESS_KEY=$secretAccessKey'
+eval 'export AWS_SESSION_TOKEN=$sessionToken'
